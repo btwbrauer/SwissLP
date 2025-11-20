@@ -45,7 +45,25 @@ def find_best_trial_from_mlflow(experiment_name: str, metric: str = "eval_f1") -
     best_run = runs.iloc[0]
     run_name = best_run.get("tags.mlflow.runName", "")
 
-    # Extract trial number from run name (e.g., "Trial 5" -> 5)
+    # Extract trial number from run name
+    # New format: "ModelName_XX" (e.g., "SwissBERT_01" -> 1)
+    # Old format: "Trial X" (e.g., "Trial 5" -> 5) - for backward compatibility
+    trial_num = None
+
+    # Try new format first: ModelName_XX
+    if "_" in run_name:
+        try:
+            # Extract number from end (e.g., "SwissBERT_01" -> "01" -> 1)
+            parts = run_name.rsplit("_", 1)
+            if len(parts) == 2:
+                trial_num = int(parts[1])  # This handles "01" -> 1 automatically
+                metric_value = best_run.get(f"metrics.{metric}", "N/A")
+                logger.info(f"Best trial from MLflow: {run_name} ({metric}={metric_value:.4f})")
+                return trial_num
+        except (ValueError, IndexError):
+            pass
+
+    # Try old format for backward compatibility: "Trial X"
     if "Trial" in run_name:
         try:
             trial_num = int(run_name.split()[-1])
