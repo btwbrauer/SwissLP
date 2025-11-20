@@ -265,8 +265,6 @@ def create_mlflow_callback(experiment_name: str) -> Callable:
     return mlflow_callback
 
 
-
-
 def run_hyperparameter_tuning(
     config_path: str | Path,
     model_name: str,

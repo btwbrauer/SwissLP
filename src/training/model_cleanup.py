@@ -173,7 +173,9 @@ def keep_best_model(
             base_experiment_name = list(trial_dirs.keys())[0]
             logger.info(f"Inferred base experiment name: {base_experiment_name}")
         else:
-            logger.error("Could not infer base experiment name. Please provide base_experiment_name")
+            logger.error(
+                "Could not infer base experiment name. Please provide base_experiment_name"
+            )
             return None, 0.0
 
     # At this point, base_experiment_name is guaranteed to be a string
@@ -183,7 +185,9 @@ def keep_best_model(
     trial_dirs = find_trial_directories(outputs_path, base_experiment_name)
 
     if not trial_dirs:
-        logger.warning(f"No trial directories found matching pattern: {base_experiment_name}_trial_*")
+        logger.warning(
+            f"No trial directories found matching pattern: {base_experiment_name}_trial_*"
+        )
         return None, 0.0
 
     logger.info(f"\nFound {len(trial_dirs)} trial directories:")
