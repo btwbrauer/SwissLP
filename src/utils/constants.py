@@ -15,4 +15,3 @@ MODEL_DISPLAY_NAMES = {
     "fasttext": "fastText",
     "whisper": "Whisper",
 }
-

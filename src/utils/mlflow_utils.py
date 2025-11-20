@@ -59,4 +59,3 @@ def ensure_mlflow_experiment(experiment_name: str) -> str:
         logger.warning(f"Could not create experiment '{experiment_name}': {e}")
 
     return tracking_uri
-
