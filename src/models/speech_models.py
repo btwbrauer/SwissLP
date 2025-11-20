@@ -27,35 +27,17 @@ def load_wav2vec2(
     num_labels: int | None = None,
     device: torch.device | None = None,
 ) -> tuple[Wav2Vec2ForSequenceClassification, Wav2Vec2FeatureExtractor]:
-    """
-    Load Wav2Vec2 model and feature extractor.
-
-    Args:
-        model_name: Hugging Face model identifier
-        num_labels: Number of classification labels (if None, loads pre-trained)
-        device: Device to load model on (if None, auto-detect)
-
-    Returns:
-        Tuple of (model, feature_extractor)
-    """
-    if device is None:
-        device = get_device()
-
-    feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model_name)
-
+    """Load Wav2Vec2 model and feature extractor."""
     from ..utils.logging_utils import suppress_transformers_warnings
 
+    device = device or get_device()
+    feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(model_name)
+
     with suppress_transformers_warnings():
-        kwargs = {}
-        if num_labels is not None:
-            kwargs["num_labels"] = num_labels
-            kwargs["ignore_mismatched_sizes"] = True
+        kwargs = {"num_labels": num_labels, "ignore_mismatched_sizes": True} if num_labels else {}
         model = Wav2Vec2ForSequenceClassification.from_pretrained(model_name, **kwargs)
 
-    model = model.to(device)
-    model.eval()
-
-    return model, feature_extractor
+    return model.to(device).eval(), feature_extractor
 
 
 def load_ast(
@@ -63,93 +45,48 @@ def load_ast(
     num_labels: int | None = None,
     device: torch.device | None = None,
 ) -> tuple[ASTForAudioClassification, ASTFeatureExtractor]:
-    """
-    Load Audio Spectrogram Transformer (AST) model and feature extractor.
-
-    Args:
-        model_name: Hugging Face model identifier
-        num_labels: Number of classification labels (if None, loads pre-trained)
-        device: Device to load model on (if None, auto-detect)
-
-    Returns:
-        Tuple of (model, feature_extractor)
-    """
-    if device is None:
-        device = get_device()
-
-    feature_extractor = ASTFeatureExtractor.from_pretrained(model_name)
-
+    """Load Audio Spectrogram Transformer (AST) model and feature extractor."""
     from ..utils.logging_utils import suppress_transformers_warnings
 
+    device = device or get_device()
+    feature_extractor = ASTFeatureExtractor.from_pretrained(model_name)
+
     with suppress_transformers_warnings():
-        kwargs = {}
-        if num_labels is not None:
-            kwargs["num_labels"] = num_labels
-            kwargs["ignore_mismatched_sizes"] = True
+        kwargs = {"num_labels": num_labels, "ignore_mismatched_sizes": True} if num_labels else {}
         model = ASTForAudioClassification.from_pretrained(model_name, **kwargs)
 
-    model = model.to(device)
-    model.eval()
-
-    return model, feature_extractor
+    return model.to(device).eval(), feature_extractor
 
 
 def load_whisper(
     model_name: str = "openai/whisper-base", device: torch.device | None = None
 ) -> tuple[WhisperForConditionalGeneration, WhisperProcessor]:
-    """
-    Load Whisper model and processor for speech recognition.
+    """Load Whisper model and processor for speech recognition."""
+    from ..utils.logging_utils import suppress_transformers_warnings
 
-    Args:
-        model_name: Hugging Face model identifier (tiny, base, small, medium, large)
-        device: Device to load model on (if None, auto-detect)
-
-    Returns:
-        Tuple of (model, processor)
-    """
-    if device is None:
-        device = get_device()
-
+    device = device or get_device()
     processor = WhisperProcessor.from_pretrained(model_name)
-    model = WhisperForConditionalGeneration.from_pretrained(model_name)
-
-    model = model.to(device)
-    model.eval()
-
-    return model, processor
+    with suppress_transformers_warnings():
+        model = WhisperForConditionalGeneration.from_pretrained(model_name)
+    return model.to(device).eval(), processor
 
 
 def load_all_speech_models(
     device: torch.device | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """
-    Load all speech models for comparison/ensemble.
-
-    Args:
-        device: Device to load models on (if None, auto-detect)
-
-    Returns:
-        Dictionary containing all loaded models and their processors
-    """
-    if device is None:
-        device = get_device()
-
+    """Load all speech models for comparison/ensemble."""
+    device = device or get_device()
     print(f"Loading speech models on device: {device}")
 
     models = {}
-
-    print("Loading Wav2Vec2...")
-    wav2vec2_model, wav2vec2_processor = load_wav2vec2(device=device)
-    models["wav2vec2"] = {"model": wav2vec2_model, "processor": wav2vec2_processor}
-
-    print("Loading AST...")
-    ast_model, ast_processor = load_ast(device=device)
-    models["ast"] = {"model": ast_model, "processor": ast_processor}
-
-    print("Loading Whisper...")
-    whisper_model, whisper_processor = load_whisper(device=device)
-    models["whisper"] = {"model": whisper_model, "processor": whisper_processor}
+    for name, loader in [
+        ("wav2vec2", lambda: load_wav2vec2(device=device)),
+        ("ast", lambda: load_ast(device=device)),
+        ("whisper", lambda: load_whisper(device=device)),
+    ]:
+        print(f"Loading {name}...")
+        model, processor = loader()
+        models[name] = {"model": model, "processor": processor}
 
     print("✓ All speech models loaded successfully")
-
     return models
