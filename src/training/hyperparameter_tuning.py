@@ -133,7 +133,7 @@ def create_objective_function(
             # This ensures the trainer can reuse this run instead of creating a new one
 
             # Setup MLflow experiment
-            tracking_uri = ensure_mlflow_experiment(mlflow_experiment_name)
+            ensure_mlflow_experiment(mlflow_experiment_name)
 
             # Start run for this trial (nested=True allows it to be nested under parent if exists)
             mlflow.start_run(run_name=f"Trial {trial.number}", nested=True)

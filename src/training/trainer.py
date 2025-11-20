@@ -14,7 +14,7 @@ import numpy as np
 import torch  # type: ignore
 from datasets import Dataset  # type: ignore
 from sklearn.metrics import precision_recall_fscore_support  # type: ignore
-from transformers import (  # type: ignore
+from transformers import (
     AutoModelForSequenceClassification,
     DataCollatorWithPadding,
     EarlyStoppingCallback,
@@ -31,30 +31,28 @@ from ..utils.mlflow_utils import ensure_mlflow_experiment
 
 def create_compute_metrics_fn(class_names: list[str] | None = None):
     """Create a compute_metrics function for Hugging Face Trainer."""
+    from transformers import EvalPrediction
 
-    def compute_metrics_fn(eval_pred: tuple[np.ndarray, np.ndarray]) -> dict[str, float]:
-        predictions, labels = eval_pred
-        predictions = np.argmax(predictions, axis=-1)
+    def compute_metrics_fn(eval_pred: EvalPrediction) -> dict[str, float]:
+        predictions = np.argmax(eval_pred.predictions, axis=-1)
+        labels = eval_pred.label_ids
 
         metrics = compute_metrics(predictions, labels, average="weighted")
 
-        # Filter out list metrics (MLflow only accepts scalars)
         metrics_filtered: dict[str, float] = {}
         for k, v in metrics.items():
             if k not in ["precision_per_class", "recall_per_class", "f1_per_class", "support"]:
                 if isinstance(v, (int, float, np.number)):
                     metrics_filtered[k] = float(v)
 
-        # Add macro F1
         _, _, f1_macro, _ = precision_recall_fscore_support(
-            labels, predictions, average="macro", zero_division=0
+            labels, predictions, average="macro", zero_division=0  # type: ignore
         )
         metrics_filtered["macro_f1"] = float(f1_macro)
 
-        # Add per-class F1 metrics if class names provided
         if class_names:
             _, _, f1_per_class, _ = precision_recall_fscore_support(
-                labels, predictions, average=None, zero_division=0
+                labels, predictions, average=None, zero_division=0  # type: ignore
             )
             for i, class_name in enumerate(class_names):
                 if i < len(f1_per_class):
@@ -334,14 +332,13 @@ class SpeechTrainer(BaseTrainer):
                 """Collate audio features with dynamic padding."""
                 input_values = [f["input_values"] for f in features]
                 labels = torch.tensor([f["label"] for f in features])
-
-                batch = self.processor(
+                batch_dict = self.processor(
                     input_values,
                     padding=True,
                     return_tensors="pt",
                 )
-                batch["labels"] = labels
-                return batch
+                batch_dict["labels"] = labels
+                return batch_dict
 
         data_collator = AudioDataCollator(processor=processor)
         super().__init__(

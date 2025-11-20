@@ -30,7 +30,9 @@ def find_best_trial_from_mlflow(experiment_name: str, metric: str = "eval_f1") -
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
     mlflow.set_tracking_uri(tracking_uri)
 
-    runs = mlflow.search_runs(
+    import pandas as pd
+
+    runs: pd.DataFrame = mlflow.search_runs(  # type: ignore
         experiment_names=[experiment_name],
         order_by=[f"metrics.{metric} DESC"],
         max_results=1,

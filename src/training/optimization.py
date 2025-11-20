@@ -29,24 +29,7 @@ def optimize_single_model(
     outputs_dir: str | Path = "./outputs",
     skip_cleanup: bool = False,
 ) -> tuple[bool, Path | None, float]:
-    """
-    Optimize hyperparameters for a single model.
-
-    This function:
-    1. Runs hyperparameter tuning
-    2. Optionally keeps only the best model and deletes others
-
-    Args:
-        model_name: Model name (swissbert, german_bert, xlm_roberta)
-        config_dir: Directory containing config files
-        n_trials: Number of trials to run
-        timeout: Timeout in seconds (None = no timeout)
-        outputs_dir: Outputs directory
-        skip_cleanup: If True, skip cleanup (keep all trial models)
-
-    Returns:
-        Tuple of (success, best_model_path, freed_mb)
-    """
+    """Optimize hyperparameters for a single model."""
     config_dir = Path(config_dir)
     outputs_dir = Path(outputs_dir)
 
