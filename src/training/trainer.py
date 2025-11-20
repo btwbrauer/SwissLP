@@ -19,6 +19,7 @@ from transformers import (  # type: ignore
     DataCollatorWithPadding,
     EarlyStoppingCallback,
     Trainer,
+    TrainerCallback,
     TrainingArguments,
     Wav2Vec2FeatureExtractor,
     Wav2Vec2ForSequenceClassification,
@@ -69,6 +70,55 @@ def create_compute_metrics_fn(class_names: list[str] | None = None):
     return compute_metrics_fn
 
 
+class MLflowMetricsCallback(TrainerCallback):
+    """Callback to log metrics to MLflow during training."""
+
+    def __init__(self):
+        """Initialize MLflow metrics callback."""
+        super().__init__()
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        """Log metrics to MLflow when trainer logs metrics."""
+        if logs is None:
+            return
+
+        # Filter out non-metric keys
+        metrics_to_log = {}
+        for key, value in logs.items():
+            # Include learning_rate and epoch as they're useful metrics
+            # Skip only non-numeric values and step (which is redundant with global_step)
+            if key != "step" and isinstance(value, (int, float)):
+                metrics_to_log[key] = float(value)
+
+        # Log metrics to MLflow if there are any
+        if metrics_to_log and mlflow.active_run():
+            try:
+                mlflow.log_metrics(metrics_to_log, step=state.global_step)
+            except Exception:
+                # Silently fail to avoid disrupting training
+                pass
+
+    def on_evaluate(self, args, state, control, logs=None, **kwargs):
+        """Log evaluation metrics to MLflow."""
+        if logs is None:
+            return
+
+        # Filter out non-metric keys
+        metrics_to_log = {}
+        for key, value in logs.items():
+            # Skip non-numeric values and step (epoch is useful to keep)
+            if key != "step" and isinstance(value, (int, float)):
+                metrics_to_log[key] = float(value)
+
+        # Log metrics to MLflow if there are any
+        if metrics_to_log and mlflow.active_run():
+            try:
+                mlflow.log_metrics(metrics_to_log, step=state.global_step)
+            except Exception:
+                # Silently fail to avoid disrupting training
+                pass
+
+
 class BaseTrainer(ABC):
     """Base trainer class for text and speech models."""
 
@@ -96,6 +146,7 @@ class BaseTrainer(ABC):
         self.val_dataset = val_dataset
         self._mlflow_run_active = False
         self._mlflow_experiment_name = mlflow_experiment_name
+        self._mlflow_run_created_externally = False
 
         # Create output directory
         output_dir = Path(training_config.output_dir) / config.experiment_name
@@ -137,7 +188,8 @@ class BaseTrainer(ABC):
         # Create callbacks
         # Note: We don't use MLflowCallback from transformers because we manually manage MLflow runs
         # This prevents duplicate runs when used with Optuna hyperparameter tuning
-        callbacks = []
+        # Instead, we use a custom callback to log metrics during training
+        callbacks = [MLflowMetricsCallback()]
         if val_dataset is not None and training_config.early_stopping_patience is not None:
             early_stopping = EarlyStoppingCallback(
                 early_stopping_patience=training_config.early_stopping_patience,
@@ -165,6 +217,10 @@ class BaseTrainer(ABC):
         # Reuse existing run if available (e.g., from Optuna), otherwise create new one
         if mlflow.active_run() is None:
             mlflow.start_run(run_name=self.config.experiment_name)
+            self._mlflow_run_created_externally = False
+        else:
+            # Run was created externally (e.g., by Optuna hyperparameter tuning)
+            self._mlflow_run_created_externally = True
         self._mlflow_run_active = True
         mlflow.log_params(self._get_mlflow_params())
 
@@ -203,21 +259,38 @@ class BaseTrainer(ABC):
         )
 
         # Log final training metrics
-        mlflow.log_metrics(
-            {
-                "train_loss": train_result.training_loss,
-                "global_step": train_result.global_step,
-                "epoch": epoch,
-            }
-        )
+        # Include all metrics from train_result (includes eval metrics if evaluation was done)
+        final_metrics = {
+            "train_loss": train_result.training_loss,
+            "global_step": train_result.global_step,
+            "epoch": epoch,
+        }
 
-        # Log model artifacts
+        # Add any evaluation metrics that were collected during training
+        # Include all metrics from train_result (they're already logged during training via callback,
+        # but we log them again here as final values for easy comparison)
+        if hasattr(train_result, "metrics") and train_result.metrics:
+            for key, value in train_result.metrics.items():
+                # Include all metrics, including runtime metrics
+                if isinstance(value, (int, float)):
+                    final_metrics[key] = float(value)
+
+        mlflow.log_metrics(final_metrics)
+
+        # Log model artifacts (only if output directory exists and is accessible)
         output_dir = Path(training_config.output_dir) / self.config.experiment_name
         if output_dir.exists() and any(output_dir.iterdir()):
-            mlflow.log_artifacts(str(output_dir), artifact_path="model")
+            try:
+                mlflow.log_artifacts(str(output_dir), artifact_path="model")
+            except (PermissionError, OSError):
+                # Silently skip artifact logging if there are permission issues
+                # This can happen in test environments or when using file-based MLflow
+                pass
 
-        # End MLflow run
-        self._end_mlflow_run()
+        # End MLflow run only if it was created by this trainer
+        # If created externally (e.g., by Optuna), let the caller end it
+        if not self._mlflow_run_created_externally:
+            self._end_mlflow_run()
 
         return {
             "train_loss": train_result.training_loss,
@@ -242,6 +315,16 @@ class BaseTrainer(ABC):
             self._setup_mlflow()
 
         metrics = self.trainer.evaluate(eval_dataset=eval_dataset)
+
+        # Log evaluation metrics to MLflow
+        if mlflow.active_run():
+            metrics_to_log = {}
+            for key, value in metrics.items():
+                if isinstance(value, (int, float)):
+                    metrics_to_log[key] = float(value)
+            if metrics_to_log:
+                mlflow.log_metrics(metrics_to_log)
+
         return metrics
 
     def cleanup(self):
