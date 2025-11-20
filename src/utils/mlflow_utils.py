@@ -1,0 +1,77 @@
+"""
+MLflow utilities for experiment management.
+
+Provides consolidated functions for MLflow tracking setup and experiment management.
+"""
+
+import logging
+import os
+
+import mlflow  # type: ignore
+
+logger = logging.getLogger(__name__)
+
+
+def setup_mlflow_tracking() -> str:
+    """
+    Setup MLflow tracking URI.
+
+    Returns:
+        Tracking URI string
+    """
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+
+    # Prevent writing to root directories
+    if tracking_uri.startswith("/") and not tracking_uri.startswith("//"):
+        if not os.path.exists(tracking_uri) or not os.access(tracking_uri, os.W_OK):
+            tracking_uri = "http://localhost:5000"
+
+    mlflow.set_tracking_uri(tracking_uri)
+    return tracking_uri
+
+
+def ensure_mlflow_experiment(experiment_name: str) -> str:
+    """Ensure MLflow experiment exists and is active."""
+    from mlflow.tracking import MlflowClient  # type: ignore
+
+    tracking_uri = setup_mlflow_tracking()
+
+    # Check if experiment exists
+    experiment = mlflow.get_experiment_by_name(experiment_name)
+
+    if experiment is not None:
+        # Restore if deleted
+        if hasattr(experiment, "lifecycle_stage") and experiment.lifecycle_stage == "deleted":
+            try:
+                client = MlflowClient()
+                client.restore_experiment(experiment.experiment_id)
+            except Exception as e:
+                logger.warning(f"Could not restore experiment '{experiment_name}': {e}")
+
+        # Set as active experiment
+        mlflow.set_experiment(experiment_name)
+        return tracking_uri
+
+    # Create new experiment
+    try:
+        mlflow.create_experiment(experiment_name)
+        mlflow.set_experiment(experiment_name)
+    except Exception as e:
+        # If creation fails, try to restore from deleted experiments
+        error_msg = str(e).lower()
+        if "already exists" in error_msg or "unique constraint" in error_msg:
+            try:
+                client = MlflowClient()
+                all_experiments = client.search_experiments(view_type="ALL")
+                for exp in all_experiments:
+                    if exp.name == experiment_name:
+                        if hasattr(exp, "lifecycle_stage") and exp.lifecycle_stage == "deleted":
+                            client.restore_experiment(exp.experiment_id)
+                        mlflow.set_experiment(experiment_name)
+                        return tracking_uri
+            except Exception:
+                pass
+        logger.warning(f"Could not create experiment '{experiment_name}': {e}")
+
+    return tracking_uri
+

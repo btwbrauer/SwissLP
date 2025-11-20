@@ -2,7 +2,7 @@
   description = "Swiss German Language Processing - Text and Speech Classification";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05/";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -14,104 +14,90 @@
           config.allowUnfree = true;
         };
 
-        # Common Python packages (minimal but complete)
+        # Common Python packages
         commonPythonDeps = ps: with ps; [
-          # Hugging Face ecosystem
           transformers
           datasets
           tokenizers
           accelerate
-
-          # NLP & Audio processing
           nltk
           sentencepiece
           librosa
-          soundfile
           torchaudio
+          soundfile  # For audio file I/O (used by torchaudio.save() as fallback)
           torchvision
-
-          # Scientific Computing
           numpy
           pandas
           scikit-learn
-
-          # Dev Tools
+          matplotlib
+          seaborn
           jupyter
           pytest
-          pytest-cov
-
-          # Utilities
           tqdm
-          pyyaml
+          mlflow
+          optuna
+          optuna-dashboard  # Optional: Web UI for Optuna studies
         ];
 
-        # Python environment factory that pins `torch` to a specific variant
-        # so transitive deps (e.g. transformers/accelerate) reuse the same torch.
+        # Python environment factory that pins torch at interpreter level
+        # This ensures all packages (torchaudio, torchvision, transformers, etc.)
+        # use the same torch variant via packageOverrides
         mkPythonEnv = torchPkg:
           let
-            pythonWithPinnedTorch = pkgs.python312.override {
+            pythonWithPinnedTorch = pkgs.python313.override {
               packageOverrides = self: super: {
                 torch = torchPkg;
               };
             };
-          in pythonWithPinnedTorch.withPackages (ps:
+          in
+          pythonWithPinnedTorch.withPackages (ps:
             commonPythonDeps ps ++ [ ps.torch ]
           );
 
         # Python environments for different hardware
-        pythonDefault = mkPythonEnv pkgs.python312Packages.torch;
-        pythonCuda = mkPythonEnv pkgs.python312Packages.torchWithCuda;
-        pythonRocm = mkPythonEnv pkgs.python312Packages.torchWithRocm;
+        pythonDefault = mkPythonEnv pkgs.python313Packages.torch;
+        pythonCuda = mkPythonEnv pkgs.python313Packages.torchWithCuda;
+        pythonRocm = mkPythonEnv pkgs.python313Packages.torchWithRocm;
 
         # Shell factory
         mkShell = pythonEnv: name: pkgs.mkShell {
-          buildInputs = [
+          packages = with pkgs; [
             pythonEnv
-            pkgs.git
-            pkgs.jujutsu
-            pkgs.lazyjj
-            pkgs.ffmpeg
+            pyright
+            ruff
           ];
 
           shellHook = ''
             export HF_HOME="''${HF_HOME:-$PWD/.cache/huggingface}"
-            export PYTHONPATH="$PWD:$PYTHONPATH"
             export TOKENIZERS_PARALLELISM=true
+            export ROCR_VISIBLE_DEVICES=0
             mkdir -p "$HF_HOME"
-
+            
+            # Explicitly set Python path for Pyright/editor integration
+            # This ensures editors can find the Python interpreter even when direnv
+            # doesn't load the environment in non-interactive contexts
+            PYTHON_PATH=$(which python 2>/dev/null || echo "${pythonEnv}/bin/python")
+            export PYTHON_PATH
+            
+            # Ensure Python is in PATH for Pyright/editor integration
+            # pythonEnv automatically adds Python to PATH via Nix, but we verify it
+            if ! command -v python >/dev/null 2>&1; then
+              echo "Warning: Python not found in PATH"
+            fi
+            
             echo "🇨🇭 Swiss Language Processing (${name})"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "✓ Environment ready"
+            python -m ipykernel install --user --name SwissLP --display-name "SwissLP" 2>&1 || true
           '';
         };
-
       in
       {
         devShells = {
-          default = mkShell pythonDefault "CPU";
+          default = mkShell pythonRocm "ROCm";
           cuda = mkShell pythonCuda "CUDA";
-          rocm = mkShell pythonRocm "ROCm";
-        };
-
-        packages.default = pkgs.stdenv.mkDerivation {
-          pname = "swisslp";
-          version = "0.1.0";
-          src = ./.;
-          buildInputs = [ pythonDefault ];
-
-          installPhase = ''
-            mkdir -p $out/bin
-            echo "#!${pkgs.bash}/bin/bash" > $out/bin/swisslp
-            echo "${pythonDefault}/bin/python \"\$@\"" >> $out/bin/swisslp
-            chmod +x $out/bin/swisslp
-          '';
-        };
-
-        apps.default = {
-          type = "app";
-          program = "${self.packages.${system}.default}/bin/swisslp";
+          cpu = mkShell pythonDefault "CPU";
         };
       }
     );
 }
-

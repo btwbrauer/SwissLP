@@ -1,0 +1,113 @@
+[project]
+name = "swisslp"
+version = "0.1.0"
+description = "Swiss German Language Processing - Text and Speech Classification"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "SwissLP Contributors"}
+]
+keywords = ["nlp", "speech", "swiss-german", "dialect-classification", "bert", "wav2vec"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+# Note: Dependencies are primarily managed via flake.nix for reproducibility
+# This section is for reference and non-Nix users
+# Versions below reflect the exact versions installed in the Nix environment
+dependencies = [
+    "torch==2.9.0",
+    "torchaudio==2.9.0",
+    "transformers==4.57.1",
+    "datasets==4.0.0",
+    "tokenizers==0.22.1",
+    "accelerate==1.11.0",
+    "nltk==3.9.1",
+    "sentencepiece==0.2.1",
+    "librosa==0.11.0",
+    "soundfile==0.13.1",
+    "numpy==2.3.4",
+    "pandas==2.3.1",
+    "scikit-learn==1.7.1",
+    "matplotlib==3.10.5",
+    "seaborn==0.13.2",
+    "tqdm==4.67.1",
+    "mlflow==3.3.1",
+    "optuna==4.5.0",
+    "pyyaml==6.0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.4.2",
+    "pytest-cov>=4.0.0",  # Not currently installed in Nix environment
+    "jupyter==5.8.1",
+    "ruff==0.14.4",
+    "pyright==1.1.407",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+# Suppress specific warnings that are not actionable in our codebase
+filterwarnings = [
+    "ignore::UserWarning:transformers.configuration_utils",
+    "ignore:.*gradient_checkpointing.*:UserWarning",
+    "ignore:Passing `gradient_checkpointing` to a config initialization is deprecated:UserWarning",
+    # Suppress SWIG-related deprecation warnings from sentencepiece/C libraries
+    "ignore:builtin type SwigPyPacked.*:DeprecationWarning",
+    "ignore:builtin type SwigPyObject.*:DeprecationWarning",
+    "ignore:builtin type swigvarlink.*:DeprecationWarning",
+    # Suppress PyTorch deprecation warnings for pin_memory device argument
+    "ignore:The argument 'device' of Tensor.pin_memory.*:DeprecationWarning",
+    "ignore:The argument 'device' of Tensor.is_pinned.*:DeprecationWarning",
+    # Suppress MLflow deprecation warnings from protobuf internals
+    # These are from mlflow's internal protobuf usage and cannot be fixed in our code
+    "ignore:label\\(\\) is deprecated.*:DeprecationWarning",
+    "ignore::DeprecationWarning:mlflow.store.tracking.rest_store",
+    "ignore::DeprecationWarning:mlflow.utils.proto_json_utils",
+]
+
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "E402",  # module level import not at top (common in notebooks with sys.path modifications)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pyright]
+# In Nix environments, Pyright may not always resolve imports correctly
+# even though packages are installed. Report missing imports as warnings
+# rather than errors for packages managed via Nix.
+reportMissingImports = "warning"
+reportMissingModuleSource = "warning"
+

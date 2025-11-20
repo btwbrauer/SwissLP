@@ -63,6 +63,9 @@ result/
 *.pkl
 *.pickle
 
+# fastText embeddings (large files)
+crawl-300d-2M-subword/
+
 # Data files
 data/
 datasets/
@@ -82,6 +85,10 @@ datasets/
 # Logs
 *.log
 logs/
+
+# MLflow
+mlruns/
+mlflow.db
 
 # OS generated files
 .DS_Store
@@ -113,5 +120,15 @@ coverage.xml
 .dmypy.json
 dmypy.json
 
+# Ruff
+.ruff_cache/
+
 # Profiling
 .prof
+
+# Outputs (model checkpoints, etc.)
+outputs/
+!outputs/.gitkeep
+
+# Optuna study storage
+.optuna/

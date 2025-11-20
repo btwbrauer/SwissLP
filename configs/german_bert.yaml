@@ -1,0 +1,45 @@
+# Configuration for German BERT text classification
+model:
+  model_name: "bert-base-german-cased"
+  num_labels: 8
+  device: null  # null = auto-detect
+
+training:
+  batch_size: 16
+  learning_rate: 2e-5
+  num_epochs: 3
+  warmup_steps: 100
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  save_steps: 500
+  eval_steps: 500
+  logging_steps: 100
+  seed: 42
+  output_dir: "./outputs"
+  gradient_accumulation_steps: 1
+  fp16: false  # Set to true for GPU training with mixed precision
+  lr_scheduler_type: "linear"  # Options: "linear", "cosine", "constant", "polynomial"
+  early_stopping_patience: 3  # Number of eval steps without improvement before stopping (None to disable)
+  early_stopping_threshold: 0.001  # Minimum improvement required (0.0 = any improvement)
+
+data:
+  data_path: "./data/sentences_ch_de_transcribed.json"
+  dialects:
+    - "ch_de"
+    - "ch_lu"
+    - "ch_be"
+    - "ch_zh"
+    - "ch_vs"
+    - "ch_bs"
+    - "ch_gr"
+    - "ch_sg"
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  max_length: 512
+  audio_sample_rate: 16000
+  audio_max_duration: null
+
+experiment_name: "german_bert_baseline"
+task_type: "text"
+
