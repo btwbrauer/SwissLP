@@ -98,7 +98,12 @@ class Config:
         training_dict = config_dict.get("training")
         if training_dict:
             training_dict = training_dict.copy()
-            float_keys = ["learning_rate", "weight_decay", "max_grad_norm", "early_stopping_threshold"]
+            float_keys = [
+                "learning_rate",
+                "weight_decay",
+                "max_grad_norm",
+                "early_stopping_threshold",
+            ]
             int_keys = [
                 "num_epochs",
                 "batch_size",
