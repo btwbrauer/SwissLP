@@ -120,7 +120,7 @@ def create_objective_function(
         config.experiment_name = f"{config.experiment_name}_trial_{trial.number}"
 
         logger.info(f"\n{'=' * 70}")
-        logger.info(f"Trial {trial.number}")
+        logger.info(f"Trial {trial.number + 1:02d}")
         logger.info(f"{'=' * 70}")
         logger.info(f"Learning rate: {training_config.learning_rate:.2e}")
         logger.info(f"Batch size: {training_config.batch_size}")
@@ -136,7 +136,10 @@ def create_objective_function(
             ensure_mlflow_experiment(mlflow_experiment_name)
 
             # Start run for this trial (nested=True allows it to be nested under parent if exists)
-            mlflow.start_run(run_name=f"Trial {trial.number}", nested=True)
+            # Use trial.number + 1 so first run is named _01 instead of _00
+            mlflow.start_run(
+                run_name=f"{mlflow_experiment_name}_{trial.number + 1:02d}", nested=True
+            )
 
             # Log trial parameters to MLflow
             mlflow.log_params(trial.params)
@@ -212,7 +215,7 @@ def create_objective_function(
             return val_f1
 
         except Exception as e:
-            logger.error(f"Trial {trial.number} failed: {e}", exc_info=True)
+            logger.error(f"Trial {trial.number + 1:02d} failed: {e}", exc_info=True)
             if mlflow.active_run():
                 mlflow.log_param("trial_state", "FAILED")
                 mlflow.end_run()
