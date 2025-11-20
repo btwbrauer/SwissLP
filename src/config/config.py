@@ -83,40 +83,23 @@ class Config:
     training: TrainingConfig | None = None
 
     @classmethod
-    def _normalize_numeric_value(cls, value: Any, target_type: type) -> Any:
+    def _normalize_numeric_value(cls, value: Any, target_type: type[float] | type[int]) -> Any:
         """Normalize numeric values from YAML (handles string representations)."""
         if value is None or isinstance(value, target_type):
             return value
-
         try:
-            if target_type is float:
-                return float(value)
-            if target_type is int:
-                return int(float(value))
+            return target_type(float(value))
         except (ValueError, TypeError):
-            pass
-
-        return value
+            return value
 
     @classmethod
     def from_dict(cls, config_dict: dict[str, Any]) -> "Config":
         """Create Config from dictionary."""
         training_dict = config_dict.get("training")
-
-        # Normalize numeric values in training config
         if training_dict:
             training_dict = training_dict.copy()
-            # Normalize float values
-            for key in [
-                "learning_rate",
-                "weight_decay",
-                "max_grad_norm",
-                "early_stopping_threshold",
-            ]:
-                if key in training_dict:
-                    training_dict[key] = cls._normalize_numeric_value(training_dict[key], float)
-            # Normalize int values
-            for key in [
+            float_keys = ["learning_rate", "weight_decay", "max_grad_norm", "early_stopping_threshold"]
+            int_keys = [
                 "num_epochs",
                 "batch_size",
                 "warmup_steps",
@@ -126,16 +109,18 @@ class Config:
                 "logging_steps",
                 "seed",
                 "early_stopping_patience",
-            ]:
+            ]
+            for key in float_keys:
+                if key in training_dict:
+                    training_dict[key] = cls._normalize_numeric_value(training_dict[key], float)
+            for key in int_keys:
                 if key in training_dict:
                     training_dict[key] = cls._normalize_numeric_value(training_dict[key], int)
-            # Normalize bool values
             if "fp16" in training_dict and isinstance(training_dict["fp16"], str):
                 training_dict["fp16"] = training_dict["fp16"].lower() in ("true", "1", "yes")
 
         training = TrainingConfig(**training_dict) if training_dict else None
 
-        # Normalize data config numeric values
         data_dict = config_dict.get("data", {}).copy()
         for key in ["train_ratio", "val_ratio", "test_ratio", "audio_max_duration"]:
             if key in data_dict:
@@ -198,45 +183,28 @@ class Config:
 
         return result
 
-    def save(self, path: str) -> None:
+    def save(self, path: str | Path) -> None:
         """Save configuration to YAML file."""
         path_obj = Path(path)
         path_obj.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(path_obj, "w") as f:
+        with path_obj.open("w") as f:
             yaml.dump(self.to_dict(), f, default_flow_style=False, sort_keys=False)
 
     @classmethod
-    def load(cls, path: str) -> "Config":
+    def load(cls, path: str | Path) -> "Config":
         """Load configuration from YAML file."""
-        with open(path) as f:
+        with Path(path).open() as f:
             config_dict = yaml.safe_load(f)
         return cls.from_dict(config_dict)
 
 
-def load_config(config_path: str | None = None) -> Config:
-    """
-    Load configuration from file or return default.
-
-    Args:
-        config_path: Path to YAML configuration file
-
-    Returns:
-        Config object
-    """
-    if config_path is None:
-        return get_default_config()
-
-    return Config.load(config_path)
+def load_config(config_path: str | Path | None = None) -> Config:
+    """Load configuration from file or return default."""
+    return get_default_config() if config_path is None else Config.load(config_path)
 
 
 def get_default_config() -> Config:
-    """
-    Get default configuration.
-
-    Returns:
-        Default Config object
-    """
+    """Get default configuration."""
     return Config(
         model=ModelConfig(model_name="ZurichNLP/swissbert", num_labels=8),
         data=DataConfig(data_path="./data/sentences_ch_de_transcribed.json"),
