@@ -115,7 +115,7 @@ def plot_metrics_comparison(
             continue
 
         ax = axes[idx]
-        data = results_df[["model_name", metric]].sort_values(metric, ascending=True)
+        data = results_df[["model_name", metric]].sort_values(by=metric, ascending=True)
 
         bars = ax.barh(data["model_name"], data[metric], color=sns.color_palette("husl", len(data)))
         ax.set_xlabel(metric.replace("_", " ").title(), fontsize=11)

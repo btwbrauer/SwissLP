@@ -86,19 +86,11 @@ class Evaluator(ABC):
 
         return metrics
 
-    def save_results(self, results: dict[str, Any], output_path: str) -> None:
-        """
-        Save evaluation results to file.
-
-        Args:
-            results: Evaluation results dictionary
-            output_path: Path to save results
-        """
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(output_path, "w") as f:
-            json.dump(results, f, indent=2)
+    def save_results(self, results: dict[str, Any], output_path: str | Path) -> None:
+        """Save evaluation results to file."""
+        path = Path(output_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(results, indent=2))
 
 
 class TextEvaluator(Evaluator):
