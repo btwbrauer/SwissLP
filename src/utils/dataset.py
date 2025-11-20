@@ -6,7 +6,6 @@ datasets for both text and speech classification tasks using the SwissDial datas
 """
 
 import json
-import os
 import random
 import re
 import string
@@ -83,59 +82,35 @@ def split_data(
 
 
 def normalize_quotes(text: str) -> str:
-    """
-    Normalize various quote characters to standard double quotes.
-
-    Args:
-        text: Input text
-
-    Returns:
-        Text with normalized quotes
-    """
+    """Normalize various quote characters to standard double quotes."""
     text = re.sub(r'[«»""]', '"', text)
     text = re.sub(r'"\s*', '"', text)
-    text = re.sub(r'\s*"', '"', text)
-    return text
+    return re.sub(r'\s*"', '"', text)
 
 
 def flatten_examples(
     subset: list[dict[str, Any]], dialects: list[str], dialect2label: dict[str, int]
 ) -> pd.DataFrame:
-    """
-    Flatten examples to create one row per dialect per sentence.
-
-    Args:
-        subset: List of examples
-        dialects: List of dialect codes
-        dialect2label: Mapping from dialect codes to label integers
-
-    Returns:
-        DataFrame with columns: text, label, id, dialect
-    """
+    """Flatten examples to create one row per dialect per sentence."""
     rows = []
     for ex in subset:
         for d in dialects:
-            # Map "ch_de" to "de" for compatibility with data format
             data_key = "de" if d == "ch_de" else d
             if data_key not in ex:
-                continue  # Skip if dialect not in example
-            clean_text = normalize_quotes(ex[data_key])
+                continue
             rows.append(
-                {"text": clean_text, "label": dialect2label[d], "id": ex["id"], "dialect": d}
+                {
+                    "text": normalize_quotes(ex[data_key]),
+                    "label": dialect2label[d],
+                    "id": ex["id"],
+                    "dialect": d,
+                }
             )
     return pd.DataFrame(rows)
 
 
 def get_split_ids(subset: list[dict[str, Any]]) -> list[int]:
-    """
-    Extract unique IDs from a subset.
-
-    Args:
-        subset: List of examples with 'id' field
-
-    Returns:
-        Sorted list of unique IDs
-    """
+    """Extract unique IDs from a subset."""
     return sorted({ex["id"] for ex in subset})
 
 
@@ -169,10 +144,8 @@ def make_text_datasets(
             f"Please ensure the data file exists at the specified path."
         )
 
-    # Load and filter data
     filtered = load_swiss_german_data(file_path, dialects)
-
-    if len(filtered) == 0:
+    if not filtered:
         raise ValueError(
             f"No data found after filtering. File: {file_path}, Dialects: {dialects}\n"
             f"Please check that:\n"
@@ -180,23 +153,13 @@ def make_text_datasets(
             f"  2. The examples contain all required dialect keys: {dialects}"
         )
 
-    # Split data
     train, val, test = split_data(filtered, seed, train_ratio, val_ratio, test_ratio)
-
-    # Create label mapping
     dialect2label = {d: i for i, d in enumerate(dialects)}
 
-    # Flatten examples
-    train_df = flatten_examples(train, dialects, dialect2label)
-    val_df = flatten_examples(val, dialects, dialect2label)
-    test_df = flatten_examples(test, dialects, dialect2label)
+    train_dataset = Dataset.from_pandas(flatten_examples(train, dialects, dialect2label))
+    val_dataset = Dataset.from_pandas(flatten_examples(val, dialects, dialect2label))
+    test_dataset = Dataset.from_pandas(flatten_examples(test, dialects, dialect2label))
 
-    # Convert to HuggingFace datasets
-    train_dataset = Dataset.from_pandas(train_df)
-    val_dataset = Dataset.from_pandas(val_df)
-    test_dataset = Dataset.from_pandas(test_df)
-
-    # Get split IDs
     train_ids = get_split_ids(train)
     val_ids = get_split_ids(val)
     test_ids = get_split_ids(test)
@@ -207,25 +170,15 @@ def make_text_datasets(
 def make_audio_dataframe(
     split_ids: list[int], dialects: list[str], dialect2label: dict[str, int], audio_root: str
 ) -> pd.DataFrame:
-    """
-    Create audio dataframe for a given split.
-
-    Args:
-        split_ids: List of example IDs for this split
-        dialects: List of dialect codes
-        dialect2label: Mapping from dialect codes to label integers
-        audio_root: Root directory containing audio files
-
-    Returns:
-        DataFrame with columns: audio_path, label, id, dialect
-    """
+    """Create audio dataframe for a given split."""
     rows = []
     for d in dialects:
-        folder = os.path.join(audio_root, d[3:])  # e.g., 'lu' from 'ch_lu'
-        for id in split_ids:
-            fname = f"{d}_{id:04}.wav"
-            fpath = os.path.join(folder, fname)
-            rows.append({"audio_path": fpath, "label": dialect2label[d], "id": id, "dialect": d})
+        folder = Path(audio_root) / d[3:]  # e.g., 'lu' from 'ch_lu'
+        for id_val in split_ids:
+            fpath = folder / f"{d}_{id_val:04}.wav"
+            rows.append(
+                {"audio_path": str(fpath), "label": dialect2label[d], "id": id_val, "dialect": d}
+            )
     return pd.DataFrame(rows)
 
 
@@ -237,24 +190,12 @@ def make_audio_splits(
     val_ids: list[int],
     test_ids: list[int],
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """
-    Create audio dataframes for train, validation, and test splits.
-
-    Args:
-        audio_root: Root directory containing audio files
-        dialects: List of dialect codes
-        dialect2label: Mapping from dialect codes to label integers
-        train_ids: List of training example IDs
-        val_ids: List of validation example IDs
-        test_ids: List of test example IDs
-
-    Returns:
-        Tuple of (train_audio_df, val_audio_df, test_audio_df)
-    """
-    train_audio_df = make_audio_dataframe(train_ids, dialects, dialect2label, audio_root)
-    val_audio_df = make_audio_dataframe(val_ids, dialects, dialect2label, audio_root)
-    test_audio_df = make_audio_dataframe(test_ids, dialects, dialect2label, audio_root)
-    return train_audio_df, val_audio_df, test_audio_df
+    """Create audio dataframes for train, validation, and test splits."""
+    return (
+        make_audio_dataframe(train_ids, dialects, dialect2label, audio_root),
+        make_audio_dataframe(val_ids, dialects, dialect2label, audio_root),
+        make_audio_dataframe(test_ids, dialects, dialect2label, audio_root),
+    )
 
 
 # ============================================================================
@@ -311,66 +252,31 @@ def load_audio_file(
     return waveform, sample_rate
 
 
-def load_text_file(file_path: str, encoding: str = "utf-8") -> str:
-    """
-    Load a text file.
-
-    Args:
-        file_path: Path to text file
-        encoding: Text encoding (default: utf-8)
-
-    Returns:
-        Text content as string
-    """
-    with open(file_path, encoding=encoding) as f:
-        return f.read().strip()
+def load_text_file(file_path: str | Path, encoding: str = "utf-8") -> str:
+    """Load a text file."""
+    return Path(file_path).read_text(encoding=encoding).strip()
 
 
 def load_dataset_from_directory(
-    data_dir: str, file_extension: str = ".txt", label_mapping: dict[str, int] | None = None
+    data_dir: str | Path, file_extension: str = ".txt", label_mapping: dict[str, int] | None = None
 ) -> tuple[list[str], list[int], dict[str, int]]:
-    """
-    Load a dataset from a directory structure where subdirectories are class labels.
+    """Load a dataset from a directory structure where subdirectories are class labels."""
+    data_dir_path = Path(data_dir)
+    class_dirs = [d for d in data_dir_path.iterdir() if d.is_dir()]
 
-    Expected structure:
-        data_dir/
-            class1/
-                file1.txt
-                file2.txt
-            class2/
-                file1.txt
-                file2.txt
-
-    Args:
-        data_dir: Root directory containing class subdirectories
-        file_extension: File extension to look for
-        label_mapping: Optional mapping from label names to integers
-
-    Returns:
-        Tuple of (file_paths, labels, label_mapping)
-    """
-    data_dir = Path(data_dir)
-    file_paths = []
-    labels = []
-
-    # Get all class directories
-    class_dirs = [d for d in data_dir.iterdir() if d.is_dir()]
-
-    # Create label mapping if not provided
     if label_mapping is None:
         label_mapping = {d.name: idx for idx, d in enumerate(sorted(class_dirs))}
 
-    # Load files
+    file_paths = []
+    labels = []
     for class_dir in class_dirs:
         class_name = class_dir.name
         if class_name not in label_mapping:
             continue
-
         label = label_mapping[class_name]
-
-        for file_path in class_dir.glob(f"*{file_extension}"):
-            file_paths.append(str(file_path))
-            labels.append(label)
+        files = list(class_dir.glob(f"*{file_extension}"))
+        file_paths.extend(str(p) for p in files)
+        labels.extend([label] * len(files))
 
     return file_paths, labels, label_mapping
 
@@ -570,30 +476,13 @@ def preprocess_text(
     remove_punctuation: bool = False,
     remove_numbers: bool = False,
 ) -> str:
-    """
-    Preprocess text with various options.
-
-    Args:
-        text: Input text
-        lowercase: Convert to lowercase
-        remove_punctuation: Remove punctuation marks
-        remove_numbers: Remove numbers
-
-    Returns:
-        Preprocessed text
-    """
+    """Preprocess text with various options."""
     if lowercase:
         text = text.lower()
-
     if remove_punctuation:
         text = text.translate(str.maketrans("", "", string.punctuation))
-
     if remove_numbers:
         text = text.translate(str.maketrans("", "", string.digits))
-
-    # Remove extra whitespace
-    text = " ".join(text.split())
-
-    return text
+    return " ".join(text.split())
 
 
