@@ -13,10 +13,10 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-import torch
-from transformers import (
+import torch  # type: ignore
+from transformers import (  # type: ignore
     AutoModel,
     AutoModelForSequenceClassification,
     AutoTokenizer,
@@ -24,9 +24,6 @@ from transformers import (
 )
 
 from ..utils.device import get_device
-
-if TYPE_CHECKING:
-    import fasttext
 
 
 def _load_auto_model(
@@ -109,7 +106,7 @@ def load_byt5(
 def load_fasttext(
     model_path: str | None = None,
     download_url: str = "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin",
-) -> fasttext.FastText._FastText:
+) -> Any:
     """
     Load fastText model for text classification.
 
@@ -124,7 +121,7 @@ def load_fasttext(
         fastText model object
     """
     try:
-        import fasttext
+        import fasttext  # type: ignore
     except ImportError:
         raise ImportError(
             "fasttext is not available in nixpkgs python packages. "

@@ -14,7 +14,7 @@ import numpy as np
 import torch  # type: ignore
 from datasets import Dataset  # type: ignore
 from sklearn.metrics import precision_recall_fscore_support  # type: ignore
-from transformers import (
+from transformers import (  # type: ignore
     AutoModelForSequenceClassification,
     DataCollatorWithPadding,
     EarlyStoppingCallback,
@@ -31,7 +31,7 @@ from ..utils.mlflow_utils import ensure_mlflow_experiment
 
 def create_compute_metrics_fn(class_names: list[str] | None = None):
     """Create a compute_metrics function for Hugging Face Trainer."""
-    from transformers import EvalPrediction
+    from transformers import EvalPrediction  # type: ignore
 
     def compute_metrics_fn(eval_pred: EvalPrediction) -> dict[str, float]:
         predictions = np.argmax(eval_pred.predictions, axis=-1)
@@ -46,13 +46,19 @@ def create_compute_metrics_fn(class_names: list[str] | None = None):
                     metrics_filtered[k] = float(v)
 
         _, _, f1_macro, _ = precision_recall_fscore_support(
-            labels, predictions, average="macro", zero_division=0  # type: ignore
+            labels,
+            predictions,
+            average="macro",
+            zero_division=0,  # type: ignore
         )
         metrics_filtered["macro_f1"] = float(f1_macro)
 
         if class_names:
             _, _, f1_per_class, _ = precision_recall_fscore_support(
-                labels, predictions, average=None, zero_division=0  # type: ignore
+                labels,
+                predictions,
+                average=None,
+                zero_division=0,  # type: ignore
             )
             for i, class_name in enumerate(class_names):
                 if i < len(f1_per_class):

@@ -13,11 +13,11 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import pandas as pd
-import soundfile as sf
-import torch
-import torchaudio
-from datasets import Dataset
+import pandas as pd  # type: ignore
+import soundfile as sf  # type: ignore
+import torch  # type: ignore
+import torchaudio  # type: ignore
+from datasets import Dataset  # type: ignore
 
 # ============================================================================
 # Swiss German Dataset Preparation (Project-Specific)
@@ -484,5 +484,3 @@ def preprocess_text(
     if remove_numbers:
         text = text.translate(str.maketrans("", "", string.digits))
     return " ".join(text.split())
-
-
