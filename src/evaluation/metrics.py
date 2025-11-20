@@ -64,7 +64,9 @@ class ClassificationMetrics:
         self.predictions = []
         self.labels = []
 
-    def update(self, predictions: torch.Tensor | np.ndarray, labels: torch.Tensor | np.ndarray) -> None:
+    def update(
+        self, predictions: torch.Tensor | np.ndarray, labels: torch.Tensor | np.ndarray
+    ) -> None:
         """Update metrics with new predictions and labels."""
         if isinstance(predictions, torch.Tensor):
             if predictions.dim() > 1:
