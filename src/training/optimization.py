@@ -88,7 +88,17 @@ def optimize_single_model(
 
         config.experiment_name = f"{config.experiment_name}_optimized"
         optimized_config_path = config_dir / f"{config_path.stem}_optimized.yaml"
-        config.save(str(optimized_config_path))
+        try:
+            config.save(str(optimized_config_path))
+        except OSError as e:
+            if "No space left on device" in str(e) or e.errno == 28:
+                logger.error(
+                    "Failed to save optimized config: Disk space exhausted. "
+                    "Best parameters are logged above. Please free disk space and try again."
+                )
+                # Don't fail the entire optimization, just warn
+            else:
+                raise
 
         logger.info("\n" + "=" * 70)
         logger.info("Best Hyperparameters Saved")

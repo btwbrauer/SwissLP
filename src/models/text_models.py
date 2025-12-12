@@ -31,6 +31,7 @@ def _load_auto_model(
     num_labels: int | None = None,
     device: torch.device | None = None,
     post_load_hook: Callable[[AutoModel | AutoModelForSequenceClassification], None] | None = None,
+    **kwargs,
 ) -> tuple[AutoModel | AutoModelForSequenceClassification, AutoTokenizer]:
     """Helper function to load AutoModel with common patterns."""
     from ..utils.logging_utils import suppress_transformers_warnings
@@ -41,15 +42,19 @@ def _load_auto_model(
     with suppress_transformers_warnings():
         if num_labels is not None:
             model = AutoModelForSequenceClassification.from_pretrained(
-                model_name, num_labels=num_labels, ignore_mismatched_sizes=True
+                model_name, num_labels=num_labels, ignore_mismatched_sizes=True, **kwargs
             )
         else:
-            model = AutoModel.from_pretrained(model_name)
+            model = AutoModel.from_pretrained(model_name, **kwargs)
 
     if post_load_hook is not None:
         post_load_hook(model)
 
-    return model.to(device).eval(), tokenizer
+    # Minimal approach: just move to device and set eval mode
+    # Let the Trainer handle everything else
+    model = model.to(device)
+    model.eval()
+    return model, tokenizer
 
 
 def load_swissbert(
@@ -62,7 +67,7 @@ def load_swissbert(
 
     def set_language(model: AutoModel | AutoModelForSequenceClassification) -> None:
         if hasattr(model, "set_default_language"):
-            model.set_default_language(default_language)
+            model.set_default_language(default_language)  # type: ignore
 
     return _load_auto_model(
         model_name=model_name,
@@ -77,8 +82,18 @@ def load_german_bert(
     num_labels: int | None = None,
     device: torch.device | None = None,
 ) -> tuple[AutoModel | AutoModelForSequenceClassification, AutoTokenizer]:
-    """Load German BERT model and tokenizer."""
-    return _load_auto_model(model_name=model_name, num_labels=num_labels, device=device)
+    """Load German BERT model and tokenizer.
+    
+    Uses AutoModel approach (exactly like SwissBERT) for ROCm compatibility.
+    This is the same loading method that works for SwissBERT.
+    """
+    # Use the exact same approach as SwissBERT - _load_auto_model
+    # This ensures identical behavior and should work on ROCm
+    return _load_auto_model(
+        model_name=model_name,
+        num_labels=num_labels,
+        device=device,
+    )
 
 
 def load_xlm_roberta(
@@ -100,7 +115,13 @@ def load_byt5(
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     with suppress_transformers_warnings():
         model = T5ForConditionalGeneration.from_pretrained(model_name)
-    return model.to(device).eval(), tokenizer
+
+    # Move to device and eval mode manually since T5ForConditionalGeneration
+    # might not fully support the fluent .to().eval() chain in static analysis
+    model = model.to(device)
+    model.eval()
+
+    return model, tokenizer
 
 
 def load_fasttext(

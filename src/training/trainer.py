@@ -152,7 +152,13 @@ class BaseTrainer(ABC):
         output_dir = Path(training_config.output_dir) / config.experiment_name
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Determine device from model
+        device = next(model.parameters()).device
+        use_cpu = device.type == "cpu"
+        
         # Create TrainingArguments
+        # For hyperparameter tuning, only keep the best checkpoint to save disk space
+        # save_total_limit=1 means only the best checkpoint is kept
         training_args = TrainingArguments(
             output_dir=str(output_dir),
             num_train_epochs=training_config.num_epochs,
@@ -170,12 +176,18 @@ class BaseTrainer(ABC):
             save_strategy="steps",
             load_best_model_at_end=True if val_dataset is not None else False,
             metric_for_best_model="f1" if val_dataset is not None else None,
-            fp16=training_config.fp16,
+            save_total_limit=1,  # Only keep the best checkpoint to save disk space
+            fp16=training_config.fp16 and not use_cpu,  # Disable fp16 on CPU
             seed=training_config.seed,
             lr_scheduler_type=training_config.lr_scheduler_type,
             report_to="none",
             dataloader_pin_memory=False,
             dataloader_num_workers=0,  # Disable multiprocessing to prevent segfaults in sequential training
+            use_cpu=use_cpu,  # Force CPU if model is on CPU (replaces deprecated no_cuda)
+            ddp_find_unused_parameters=False,  # Disable for single GPU training
+            remove_unused_columns=False,  # Keep all columns (important for tokenized datasets)
+            dataloader_drop_last=False,  # Don't drop last incomplete batch (ROCm compatibility)
+            max_steps=-1,  # Use num_epochs instead of max_steps
         )
 
         # Create compute_metrics function
@@ -198,6 +210,7 @@ class BaseTrainer(ABC):
             callbacks.append(early_stopping)
 
         # Create Hugging Face Trainer
+        # Minimal initialization - let Trainer handle everything
         self.trainer = Trainer(
             model=model,
             args=training_args,
@@ -331,12 +344,25 @@ class BaseTrainer(ABC):
         """Cleanup trainer resources."""
         self._end_mlflow_run()
         if hasattr(self, "trainer"):
+            # Move model to CPU before cleanup if on GPU
+            if hasattr(self.trainer, "model") and self.trainer.model is not None:
+                try:
+                    if next(self.trainer.model.parameters()).is_cuda:
+                        self.trainer.model = self.trainer.model.cpu()
+                except Exception:
+                    pass
             del self.trainer
+        if hasattr(self, "model") and self.model is not None:
+            try:
+                if next(self.model.parameters()).is_cuda:
+                    self.model = self.model.cpu()
+            except Exception:
+                pass
         import gc
-
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+            torch.cuda.synchronize()
 
     def __del__(self):
         """Cleanup: ensure MLflow run is ended when trainer is deleted."""
@@ -392,6 +418,7 @@ class TextTrainer(BaseTrainer):
             "val_ratio": str(self.config.data.val_ratio),
             "test_ratio": str(self.config.data.test_ratio),
             "max_length": str(self.config.data.max_length),
+            "use_class_weights": "False",
         }
         return params
 
@@ -465,5 +492,6 @@ class SpeechTrainer(BaseTrainer):
             "test_ratio": str(self.config.data.test_ratio),
             "audio_sample_rate": str(self.config.data.audio_sample_rate),
             "audio_max_duration": str(self.config.data.audio_max_duration or 0.0),
+            "use_class_weights": "False",
         }
         return params

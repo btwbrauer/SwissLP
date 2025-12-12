@@ -30,8 +30,8 @@ def load_swiss_german_data(file_path: str, dialects: list[str]) -> list[dict[str
 
     Args:
         file_path: Path to SwissDial JSON file containing sentences
-        dialects: List of dialect codes to include (e.g., ["ch_de", "ch_lu"])
-                 Note: "ch_de" is mapped to "de" in the data file
+        dialects: List of dialect codes to include (e.g., ["ch_ag", "ch_lu"])
+                 Note: Only Swiss German dialects are supported (no "ch_de" mapping)
 
     Returns:
         List of examples containing the specified dialects
@@ -39,10 +39,9 @@ def load_swiss_german_data(file_path: str, dialects: list[str]) -> list[dict[str
     with open(file_path, encoding="utf-8") as f:
         data = json.load(f)
 
-    # Map "ch_de" to "de" for compatibility with data format
-    mapped_dialects = ["de" if d == "ch_de" else d for d in dialects]
-
-    return [ex for ex in data if all(d in ex for d in mapped_dialects)]
+    # Filter examples that contain all requested dialects
+    # Note: We no longer map "ch_de" to "de" - only Swiss German dialects are used
+    return [ex for ex in data if all(d in ex for d in dialects)]
 
 
 def split_data(
@@ -51,9 +50,10 @@ def split_data(
     train_ratio: float = 0.8,
     val_ratio: float = 0.1,
     test_ratio: float = 0.1,
+    stratify_by: str | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """
-    Split data into train, validation, and test sets.
+    Split data into train, validation, and test sets using stratified sampling.
 
     Args:
         data: List of data examples
@@ -61,24 +61,70 @@ def split_data(
         train_ratio: Proportion for training set
         val_ratio: Proportion for validation set
         test_ratio: Proportion for test set
+        stratify_by: Optional field name to stratify by (e.g., "thema" for topic-based stratification)
 
     Returns:
         Tuple of (train, val, test) splits
     """
-    random.seed(seed)
-    np.random.seed(seed)
-    shuffled = data.copy()
-    random.shuffle(shuffled)
+    try:
+        from sklearn.model_selection import train_test_split
+    except ImportError:
+        # Fallback to simple random split if sklearn is not available
+        random.seed(seed)
+        np.random.seed(seed)
+        shuffled = data.copy()
+        random.shuffle(shuffled)
 
-    n = len(shuffled)
-    train_end = int(train_ratio * n)
-    val_end = train_end + int(val_ratio * n)
+        n = len(shuffled)
+        train_end = int(train_ratio * n)
+        val_end = train_end + int(val_ratio * n)
 
-    train = shuffled[:train_end]
-    val = shuffled[train_end:val_end]
-    test = shuffled[val_end:]
+        train = shuffled[:train_end]
+        val = shuffled[train_end:val_end]
+        test = shuffled[val_end:]
 
-    return train, val, test
+        return train, val, test
+
+    # Use stratified split if stratification field is provided
+    if stratify_by and data and stratify_by in data[0]:
+        # Extract stratification labels
+        stratify_labels = [ex.get(stratify_by) for ex in data]
+
+        # First split: train vs (val+test)
+        train, temp = train_test_split(
+            data,
+            test_size=(val_ratio + test_ratio),
+            random_state=seed,
+            stratify=stratify_labels,
+        )
+
+        # Second split: val vs test
+        # Adjust stratification labels for temp split
+        temp_labels = [ex.get(stratify_by) for ex in temp]
+        val, test = train_test_split(
+            temp,
+            test_size=(test_ratio / (val_ratio + test_ratio)),
+            random_state=seed,
+            stratify=temp_labels,
+        )
+
+        return train, val, test
+    else:
+        # Simple random split (maintains reproducibility)
+        random.seed(seed)
+        np.random.seed(seed)
+        shuffled = data.copy()
+        random.shuffle(shuffled)
+
+        n = len(shuffled)
+        train_end = int(train_ratio * n)
+        val_end = train_end + int(val_ratio * n)
+
+        train = shuffled[:train_end]
+        val = shuffled[train_end:val_end]
+        test = shuffled[val_end:]
+
+        return train, val, test
 
 
 def normalize_quotes(text: str) -> str:
@@ -95,12 +141,12 @@ def flatten_examples(
     rows = []
     for ex in subset:
         for d in dialects:
-            data_key = "de" if d == "ch_de" else d
-            if data_key not in ex:
+            # Use dialect key directly (no mapping needed anymore)
+            if d not in ex:
                 continue
             rows.append(
                 {
-                    "text": normalize_quotes(ex[data_key]),
+                    "text": normalize_quotes(ex[d]),
                     "label": dialect2label[d],
                     "id": ex["id"],
                     "dialect": d,
@@ -112,6 +158,59 @@ def flatten_examples(
 def get_split_ids(subset: list[dict[str, Any]]) -> list[int]:
     """Extract unique IDs from a subset."""
     return sorted({ex["id"] for ex in subset})
+
+
+def compute_class_weights(
+    train_dataset: Dataset, label_column: str = "label"
+) -> torch.Tensor | None:
+    """
+    Compute class weights for imbalanced datasets.
+
+    Uses inverse frequency weighting: weight = n_samples / (n_classes * count_per_class)
+
+    Args:
+        train_dataset: Training dataset with labels
+        label_column: Name of the label column
+
+    Returns:
+        Tensor of class weights, or None if dataset is balanced
+    """
+    if len(train_dataset) == 0:
+        return None
+
+    # Extract labels
+    labels = train_dataset[label_column]
+    if isinstance(labels, list):
+        labels = np.array(labels)
+    else:
+        labels = np.array(labels)
+
+    # Count samples per class
+    unique_labels, counts = np.unique(labels, return_counts=True)
+    n_samples = len(labels)
+    n_classes = len(unique_labels)
+
+    # Compute weights: n_samples / (n_classes * count_per_class)
+    weights = n_samples / (n_classes * counts)
+
+    # Normalize to sum to n_classes (optional, but helps with stability)
+    weights = weights / weights.sum() * n_classes
+
+    # Check if balanced (all classes have similar counts)
+    max_count = counts.max()
+    min_count = counts.min()
+    imbalance_ratio = max_count / min_count if min_count > 0 else float("inf")
+
+    # If imbalance is small (< 1.2), return None to indicate balanced dataset
+    if imbalance_ratio < 1.2:
+        return None
+
+    # Create weight tensor ordered by label index
+    weight_dict = dict(zip(unique_labels, weights))
+    max_label = int(max(unique_labels))
+    weight_list = [weight_dict.get(i, 1.0) for i in range(max_label + 1)]
+
+    return torch.tensor(weight_list, dtype=torch.float32)
 
 
 def make_text_datasets(
@@ -153,7 +252,11 @@ def make_text_datasets(
             f"  2. The examples contain all required dialect keys: {dialects}"
         )
 
-    train, val, test = split_data(filtered, seed, train_ratio, val_ratio, test_ratio)
+    # Use stratified split by topic if available, otherwise use random split
+    stratify_by = "thema" if filtered and "thema" in filtered[0] else None
+    train, val, test = split_data(
+        filtered, seed, train_ratio, val_ratio, test_ratio, stratify_by=stratify_by
+    )
     dialect2label = {d: i for i, d in enumerate(dialects)}
 
     train_dataset = Dataset.from_pandas(flatten_examples(train, dialects, dialect2label))

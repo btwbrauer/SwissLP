@@ -25,7 +25,7 @@ training:
 data:
   data_path: "./data/sentences_ch_de_transcribed.json"
   dialects:
-    - "ch_de"
+    - "ch_ag"
     - "ch_lu"
     - "ch_be"
     - "ch_zh"

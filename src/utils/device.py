@@ -29,6 +29,19 @@ def clear_gpu_memory() -> None:
             torch.cuda.ipc_collect()
         except Exception:
             pass
+        # Additional ROCm-specific cleanup
+        try:
+            # Force garbage collection of CUDA tensors
+            for obj in gc.get_objects():
+                try:
+                    if torch.is_tensor(obj) and obj.is_cuda:
+                        del obj
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        gc.collect()
+        torch.cuda.empty_cache()
     if torch.backends.mps.is_available():
         torch.mps.empty_cache()
         torch.mps.synchronize()
@@ -46,3 +59,7 @@ def setup_test_environment() -> None:
             pass
     if torch.cuda.is_available():
         os.environ.setdefault("PYTORCH_ALLOC_CONF", "max_split_size_mb:128")
+        # ROCm-specific environment variables for gfx1201 compatibility
+        os.environ.setdefault("HSA_OVERRIDE_GFX_VERSION", "12.0.1")  # For gfx1201
+        os.environ.setdefault("ROCM_FORCE_DEV_KERNARG", "1")
+        os.environ.setdefault("HIP_FORCE_DEV_KERNARG", "1")

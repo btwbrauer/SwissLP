@@ -2,7 +2,7 @@
   description = "Swiss German Language Processing - Text and Speech Classification";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -12,6 +12,8 @@
         pkgs = import nixpkgs {
           inherit system;
           config.allowUnfree = true;
+          # Set ROCm target to gfx1201 for RX 9070 XT
+          rocmTargets = [ "gfx1201" ];
         };
 
         # Common Python packages
@@ -71,6 +73,10 @@
             export HF_HOME="''${HF_HOME:-$PWD/.cache/huggingface}"
             export TOKENIZERS_PARALLELISM=true
             export ROCR_VISIBLE_DEVICES=0
+            # ROCm environment variables for gfx1201 compatibility
+            export HSA_OVERRIDE_GFX_VERSION=12.0.1
+            export ROCM_FORCE_DEV_KERNARG=1
+            export HIP_FORCE_DEV_KERNARG=1
             mkdir -p "$HF_HOME"
             
             # Explicitly set Python path for Pyright/editor integration

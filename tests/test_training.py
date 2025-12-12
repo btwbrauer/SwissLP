@@ -468,7 +468,9 @@ class TestMLflowMetricsLogging:
                 # Verify metrics were logged
                 import pandas as pd
 
-                runs: pd.DataFrame = mlflow.search_runs(experiment_names=[experiment_name], max_results=1)  # type: ignore[assignment]
+                runs: pd.DataFrame = mlflow.search_runs(
+                    experiment_names=[experiment_name], max_results=1
+                )  # type: ignore[assignment]
                 assert not runs.empty, "No runs found in MLflow"
 
                 run = runs.iloc[0]

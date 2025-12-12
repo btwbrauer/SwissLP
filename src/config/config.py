@@ -29,7 +29,7 @@ class DataConfig:
     data_path: str
     dialects: list[str] = field(
         default_factory=lambda: [
-            "ch_de",
+            "ch_ag",
             "ch_lu",
             "ch_be",
             "ch_zh",
@@ -46,6 +46,7 @@ class DataConfig:
     audio_sample_rate: int = 16000
     audio_max_duration: float | None = None
     batch_size: int = 16  # For inference/evaluation
+    use_class_weights: bool = False  # If True, apply class weights for imbalanced datasets
 
 
 @dataclass
@@ -133,6 +134,13 @@ class Config:
         for key in ["max_length", "audio_sample_rate", "batch_size"]:
             if key in data_dict:
                 data_dict[key] = cls._normalize_numeric_value(data_dict[key], int)
+        # Handle boolean values
+        if "use_class_weights" in data_dict and isinstance(data_dict["use_class_weights"], str):
+            data_dict["use_class_weights"] = data_dict["use_class_weights"].lower() in (
+                "true",
+                "1",
+                "yes",
+            )
 
         return cls(
             model=ModelConfig(**config_dict.get("model", {})),
@@ -161,6 +169,7 @@ class Config:
                 "audio_sample_rate": self.data.audio_sample_rate,
                 "audio_max_duration": self.data.audio_max_duration,
                 "batch_size": self.data.batch_size,
+                "use_class_weights": self.data.use_class_weights,
             },
             "experiment_name": self.experiment_name,
             "task_type": self.task_type,

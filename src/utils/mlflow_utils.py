@@ -13,11 +13,31 @@ logger = logging.getLogger(__name__)
 
 
 def setup_mlflow_tracking() -> str:
-    """Setup MLflow tracking URI."""
+    """
+    Setup MLflow tracking URI.
+
+    Defaults to http://localhost:5000 (MLflow server).
+    For local filesystem backend, use: export MLFLOW_TRACKING_URI="./mlruns"
+
+    Note: Filesystem backend is deprecated. Use SQLite or remote server instead.
+    """
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+
+    # Handle local filesystem paths (deprecated, but still supported)
     if tracking_uri.startswith("/") and not tracking_uri.startswith("//"):
         if not os.path.exists(tracking_uri) or not os.access(tracking_uri, os.W_OK):
+            logger.warning(
+                f"Filesystem tracking URI '{tracking_uri}' not accessible. "
+                "Falling back to http://localhost:5000. "
+                "Note: Filesystem backend is deprecated. Use SQLite or remote server."
+            )
             tracking_uri = "http://localhost:5000"
+        else:
+            logger.warning(
+                f"Using deprecated filesystem backend: {tracking_uri}. "
+                "Consider using SQLite (sqlite:///mlflow.db) or remote server instead."
+            )
+
     mlflow.set_tracking_uri(tracking_uri)
     return tracking_uri
 

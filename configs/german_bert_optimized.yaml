@@ -1,5 +1,5 @@
 model:
-  model_name: ZurichNLP/swissbert
+  model_name: bert-base-german-cased
   num_labels: 8
   device: null
   model_kwargs: {}
@@ -22,16 +22,16 @@ data:
   audio_max_duration: null
   batch_size: 16
   use_class_weights: false
-experiment_name: swissbert_baseline_optimized
+experiment_name: german_bert_baseline_optimized
 task_type: text
 training:
-  learning_rate: 4.483540913812802e-05
+  learning_rate: 2.4269117675220145e-05
   num_epochs: 3
   batch_size: 8
-  warmup_steps: 300
-  weight_decay: 0.015195605792179394
+  warmup_steps: 400
+  weight_decay: 0.0036607087744393294
   max_grad_norm: 1.0
-  gradient_accumulation_steps: 1
+  gradient_accumulation_steps: 2
   save_steps: 500
   eval_steps: 500
   logging_steps: 100
