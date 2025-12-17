@@ -17,7 +17,6 @@ This project provides a clean, reproducible development environment using Nix fl
 ### Speech Models
 - **Wav2Vec2**: Facebook's self-supervised speech representation
 - **AST**: Audio Spectrogram Transformer
-- **Whisper**: OpenAI's robust speech recognition model
 
 ### Hardware Support
 - **NVIDIA GPUs**: Automatic CUDA support
