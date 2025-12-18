@@ -12,6 +12,7 @@ A minimal, best-practice repository for Text and Speech Processing using Swiss G
 - **German BERT**: Standard BERT model for German language
 - **XLM-RoBERTa**: Cross-lingual model supporting 100+ languages
 - **ByT5**: Byte-level T5 model for multilingual tasks
+- **fastText**: lightweight model using word and character n-grams as a non-transformer baseline
 
 ### Speech Models
 - **Wav2Vec2**: Facebook's self-supervised speech representation
@@ -24,7 +25,7 @@ This repository is focused on running notebooks for comparing how the different 
 
 
 ### 1. Open a Notebook in Colab
-In Colab: Upload Notebook -> GitHub -> `https://github.com/btwbrauer/SwissLP`
+In Colab: Open Notebook -> GitHub -> `https://github.com/btwbrauer/SwissLP`
 
 ### 2. Start a Colab Notebook with a GPU
 In Colab: Runtime -> Change runtime type -> Hardware accelerator -> GPU
@@ -67,17 +68,16 @@ or
 file_path = "YOUR_CUSTOM_PATH"
 ```
 
+### 4. Running the Notebooks
+With the steps above, you are ready to run the Jupyter notebooks.
+Each model has its own notebook, which can be run in any order and includes some comments.
+All notebooks were tested on a Google Colab GPU runtime, and example results are already visible in the outputs, so running the code is not necessarily required.
+
 ## Authors
 - Justin Verhoek
 - Björn Brauer
 - Thomas Joos
 - Marion Andermatt
-
-## Acknowledgments
-
-- **Hugging Face**: For the transformers library and model hub
-- **PyTorch Team**: For the deep learning framework
-- **Course Instructors**: For guidance and support
 
 ## Resources
 
