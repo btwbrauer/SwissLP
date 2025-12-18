@@ -1,5 +1,5 @@
 # 🇨🇭 Swiss Language Processing (SwissLP)
-This repository supplements the project "Comparative Study of Pre-Trained Models for Swiss German Dialect Classification", which evaluates several text-based and speech-based pre-trained models on the task of Swiss German dialect Classification.
+This repository accompanies the project "Comparative Study of Pre-Trained Models for Swiss German Dialect Classification", which evaluates several text-based and speech-based pre-trained models on the task of Swiss German dialect Classification.
 
 Swiss German is a continuum of closely related dialects, making dialect classification a challenging low-resource and fine-grained task. The goal of this project is to determine which type of pre-training, domain-specific, general-purpose, or speech-based, is most effective for this task.
 
@@ -74,8 +74,6 @@ MyDrive/
         │   └── ...
         │
         ├── utils/
-        │   ├── __init__.py
-        │   ├── data_loader.py
         │   └── prepare_dataset.py
         │
         └── sentences_ch_de_transcribed.json
@@ -114,7 +112,7 @@ The General German BERT model performed the best among the text-based models. Th
 
 Both speech-based models achieved perfect scores across all three metrics. This is likely due to the fact that the SwissDial dataset has only one speaker per dialect, resulting in the possibility that the speech-based model exploit speaker-specific characteristics. 
 
-This shows the strength of general-purpose text pre-training for Swiss German dialect classification and the necessity for a multi-speaker dataset when evaluation speech-based models.
+This shows the strength of general-purpose text pre-training for Swiss German dialect classification and the necessity for a multi-speaker dataset when evaluating speech-based models.
 
 ## 👥 Authors
 - Justin Verhoek
