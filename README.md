@@ -28,14 +28,14 @@ Swiss German is a continuum of closely related dialects, making dialect classifi
 - **AST**: Audio Spectrogram Transformer
 
 ## Dataset
-For this project, the SwissDial Dataset povided be the Media Technology Center at ETH Zurich was used. It can be downloaded here: (https://mtc.ethz.ch/publications/open-source/swiss-dial.html)
+For this project, the SwissDial Dataset povided by the Media Technology Center at ETH Zurich was used. It can be downloaded here: (https://mtc.ethz.ch/publications/open-source/swiss-dial.html)
 
-The dataset contains about 2700 voice recordings across eight major Swiss German dialects: Aargau, Bern, Basel, Lucerne, St. Gallen, Graubünden, Valais and Zurich. Each recording is between 3 and 12 seconds long and there is one speaker per dialect. 
+The dataset contains about 2700 voice recordings across eight major Swiss German dialects: Aargau, Bern, Basel, Lucerne, St. Gallen, Graubünden, Valais and Zurich. Each recording is between 3 and 12 seconds long, and there is one speaker per dialect. 
 
 The dataset provides a JSON file with transcripts of all recordings.
 
 ## Dataset Preprocessing
-To ensure consistency across dialects, only recordings and transcripts for which corresponding data existed for all eight dialects were included in the experiments. Furthermore, in the transcription, quotation marks were standardized to single double-quote character. No other normalization was performed.
+To ensure consistency across dialects, only recordings and transcripts for which corresponding data existed for all eight dialects were included in the experiments. Furthermore, in the transcripts, quotation marks were standardized to a single double-quote character. No other normalization was performed.
 
 The data was split the following way: 80% Train, 10% Validation and 10% Test.
 
@@ -44,7 +44,7 @@ All models were trained using the same balanced train, validation, and test spli
 
 ## How to Run
 
-This repository is focused on running notebooks for comparing how the different AI models handle different Swiss German dialects. The simplest way to get started is by using [Google Colab](https://colab.google/).
+This repository is focused on running notebooks for comparing how the different LLMs handle different Swiss German dialects. The simplest way to get started is by using [Google Colab](https://colab.google/).
 
 
 ### 1. Open a Notebook in Colab
