@@ -14,7 +14,7 @@ Swiss German is a continuum of closely related dialects, making dialect classifi
 - [Authors](#authors)
 - [Resources](#resources)
 
-
+<a id="models"></a>
 ## 🤖 Models
 ### 📝 Text Models
 - **SwissBERT**: BERT model fine-tuned on Swiss German data
@@ -27,6 +27,7 @@ Swiss German is a continuum of closely related dialects, making dialect classifi
 - **Wav2Vec2**: Facebook's self-supervised speech representation
 - **AST**: Audio Spectrogram Transformer
 
+<a id="dataset"></a>
 ## 📊 Dataset
 For this project, the SwissDial Dataset povided by the Media Technology Center at ETH Zurich was used. It can be downloaded here: (https://mtc.ethz.ch/publications/open-source/swiss-dial.html)
 
@@ -34,14 +35,17 @@ The dataset contains about 2700 voice recordings across eight major Swiss German
 
 The dataset provides a JSON file with transcripts of all recordings.
 
+<a id="dataset-preprocessing"></a>
 ## 🔧 Dataset Preprocessing
 To ensure consistency across dialects, only recordings and transcripts for which corresponding data existed for all eight dialects were included in the experiments. Furthermore, in the transcripts, quotation marks were standardized to a single double-quote character. No other normalization was performed.
 
 The data was split the following way: 80% Train, 10% Validation and 10% Test.
 
+<a id="model-training"></a>
 ## 🚀 Model Training
 All models were trained using the same balanced train, validation, and test splits to ensure comparability across the different models. Transformer-based models were fine-tuned from pre-trained checkpoints using standard optimization settings, while fastText was trained from scratch on the training data
 
+<a id="how-to-run"></a>
 ## ▶️ How to Run
 
 This repository is focused on running notebooks for comparing how the different LLMs handle different Swiss German dialects. The simplest way to get started is by using [Google Colab](https://colab.google/).
@@ -94,6 +98,7 @@ With the steps above, you are ready to run the Jupyter notebooks.
 Each model has its own notebook, which can be run in any order and includes some comments.
 All notebooks were tested on a Google Colab GPU runtime, and example results are already visible in the outputs, so running the code is not necessarily required.
 
+<a id="results"></a>
 ## 📈 Results
 The macro-average precision, recall and F1-score were measured for each experiment.
 
@@ -107,6 +112,7 @@ The macro-average precision, recall and F1-score were measured for each experime
 | Speech-based| Wav2Vec2                  | 1.00          | 1.00        | 1.00          |
 | Speech-based| AST                       | 1.00          | 1.00        | 1.00          |
 
+<a id="discussion"></a>
 ## 💭 Discussion
 The General German BERT model performed the best among the text-based models. The SwissBERT model performed only sloghtly worse, indicating that strong general prupose German pre-training is already highly effective for dialect classification.
 
@@ -114,12 +120,14 @@ Both speech-based models achieved perfect scores across all three metrics. This 
 
 This shows the strength of general-purpose text pre-training for Swiss German dialect classification and the necessity for a multi-speaker dataset when evaluating speech-based models.
 
+<a id="authors"></a>
 ## 👥 Authors
 - Justin Verhoek
 - Björn Brauer
 - Thomas Joos
 - Marion Andermatt
 
+<a id="resources"></a>
 ## 📚 Resources
 - [Hugging Face Models](https://huggingface.co/models)
 - [PyTorch Documentation](https://pytorch.org/docs/)
