@@ -3,8 +3,7 @@
 A minimal, best-practice repository for Text and Speech Processing using Swiss German and German language models.
 
 ## Course: Essentials in Text and Speech Processing
-
-This project provides a clean, reproducible development environment using Nix flakes for cross-platform compatibility.
+...
 
 ## Features
 
@@ -18,11 +17,6 @@ This project provides a clean, reproducible development environment using Nix fl
 - **Wav2Vec2**: Facebook's self-supervised speech representation
 - **AST**: Audio Spectrogram Transformer
 
-### Hardware Support
-- **NVIDIA GPUs**: Automatic CUDA support
-- **AMD GPUs**: Automatic ROCm support
-- **Apple Silicon**: MPS acceleration on macOS
-- **CPU**: Fallback for all systems
 
 ## How to Run
 
